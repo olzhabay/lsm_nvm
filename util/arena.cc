@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-
+#define _USE_ARENA2_ALLOC
 static const long kBlockSize = 4096;
 static int mmap_count = 0;
 

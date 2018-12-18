@@ -73,7 +73,7 @@ static int mapFlag = MAP_PRIVATE;
 #define MAP_PMFS
 #ifdef MAP_PMFS
 static int mapFlag = MAP_PRIVATE;
-#define PMFSPATH "/mnt/ramdisk"
+#define PMFSPATH "/mnt/pmem"
 #endif
 
 //#define MAP_PVMAP

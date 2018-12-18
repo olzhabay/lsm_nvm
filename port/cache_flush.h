@@ -4,12 +4,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+//#define _ENABLE_PMEMIO
+
 #ifdef _ENABLE_PMEMIO
-#include "pmdk/src/include/libpmem.h"
+#include <libpmem.h>
 #endif
+
+static uint64_t WRITE_LATENCY_IN_NS = 500;
 
 //Cacheline size
 //TODO: Make it configurable
+#define CPU_FREQ_MHZ (2400) // cat /proc/cpuinfo
+#define CAS(_p, _u, _v)  (__atomic_compare_exchange_n (_p, _u, _v, false, __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE))
 #define CACHE_LINE_SIZE 64
 #define ASMFLUSH(dest) __asm__ __volatile__ ("clflush %0" : : "m"(*(volatile char *)dest))
 
@@ -24,39 +30,45 @@ static inline void mfence()
     return;
 }
 
-static inline void flush_cache(void *ptr, size_t size){
+static inline void cpu_pause() {
+  __asm__ volatile ("pause" ::: "memory");
+}
+
+static inline unsigned long read_tsc() {
+  unsigned long var;
+  unsigned int hi, lo;
+  asm volatile ("rdtsc" : "=a" (lo), "=d" (hi));
+  var = ((unsigned long long int) hi << 32) | lo;
+  return var;
+}
+
+static inline void flush_cache(void *data, size_t size){
 
 #ifdef _ENABLE_PMEMIO
   pmem_persist((const void*)ptr, size);
 #else
-  unsigned int  i=0;
-  uint64_t addr = (uint64_t)ptr;	
-
+  if (data == nullptr) return;
+  volatile char *ptr = (char *)((unsigned long)data &~(CACHE_LINE_SIZE-1));
   mfence();
-  for (i =0; i < size; i=i+CACHE_LINE_SIZE) {
-	clflush((volatile char*)addr);
-	addr += CACHE_LINE_SIZE;
+  for (; ptr< const_cast<volatile void*>(data+size); ptr+=CACHE_LINE_SIZE) {
+    unsigned long etsc = read_tsc() + (unsigned long)(WRITE_LATENCY_IN_NS*CPU_FREQ_MHZ/1000);
+    asm volatile("clflush %0" : "+m" (*(volatile char *)ptr));
+    while (read_tsc() < etsc)
+      cpu_pause();
   }
   mfence();
 #endif
 }
 
 static inline void memcpy_persist
-                    (void *dest, void *src, size_t size){
+                    (void *dest, const void *src, size_t size){
 
 #ifdef _ENABLE_PMEMIO
   pmem_memcpy_persist(dest, (const void *)src, size);
 #else
-  unsigned int  i=0;
-  uint64_t addr = (uint64_t)dest;
   memcpy(dest, src, size);
 
-  mfence();
-  for (i =0; i < size; i=i+CACHE_LINE_SIZE) {
-    clflush((volatile char*)addr);
-    addr += CACHE_LINE_SIZE;
-  }
-  mfence();
+  flush_cache(dest, size);
 #endif
 
 }

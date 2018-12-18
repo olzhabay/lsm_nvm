@@ -11,7 +11,7 @@
 #include "db/skiplist.h"
 #include "port/cache_flush.h"
 #include <cstdio>
-#include <gnuwrapper.h>
+//#include <gnuwrapper.h>
 #include <string>
 #include <unordered_set>
 
@@ -122,7 +122,7 @@ public:
 #ifdef USE_OFFSETS
     virtual char *GetNodeKey(){return reinterpret_cast<char *>((intptr_t)iter_.node_ - (intptr_t)iter_.key_offset()); }
 #else
-    virtual char *GetNodeKey(){return iter_.key(); }
+    virtual const char* GetNodeKey(){return iter_.key(); }
 #endif
 
 #if defined(USE_OFFSETS)

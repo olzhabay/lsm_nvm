@@ -69,7 +69,7 @@ class Iterator {
 
   //virtual void SetHead(void *ptr);  //=0;
 
-  virtual char* GetNodeKey(){return 0;};
+  virtual const char* GetNodeKey(){return 0;};
 
   // Clients are allowed to register function/arg1/arg2 triples that
   // will be invoked when this iterator is destroyed.

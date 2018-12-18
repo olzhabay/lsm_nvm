@@ -66,7 +66,7 @@ bool predict_on = false;
  */
 MemTable *g_imm;
 MemTable *g_mem;
-const leveldb::ReadOptions g_options;
+leveldb::ReadOptions g_options;
 bool mem_found = false;
 bool sstable_found = false;
 bool imm_found = false;
@@ -259,7 +259,9 @@ Status DBImpl::NewDB() {
     new_db.SetComparatorName(user_comparator()->Name());
     new_db.SetLogNumber(0);
     /* NoveLSM: Initialize memtable map file to 1*/
+#ifdef ENABLE_RECOVERY
     new_db.SetMapNumber(1);
+#endif
     new_db.SetNextFile(2);
     new_db.SetLastSequence(0);
 
@@ -326,7 +328,9 @@ void DBImpl::DeleteObsoleteFiles() {
                 break;
                 //NoveLSM: NVM memtable skip list recovery changes
             case kMapFile:
+#ifdef ENABLE_RECOVERY
                 keep = (number >= versions_->MapNumber());
+#endif
                 break;
             case kDescriptorFile:
                 // Keep my manifest file, and any newer incarnations'
@@ -412,7 +416,9 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
     const uint64_t min_log = versions_->LogNumber();
 
     //NoveLSM:Get the minimum NVM memtable map number
+#ifdef ENABLE_RECOVERY
     const uint64_t min_map = versions_->MapNumber();
+#endif
 
     const uint64_t prev_log = versions_->PrevLogNumber();
     std::vector<std::string> filenames;
@@ -440,12 +446,14 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
     for (size_t i = 0; i < filenames.size(); i++) {
         if (ParseFileName(filenames[i], &number, &type)) {
             expected.erase(number);
-            if (type == kLogFile && ((number >= min_log) || (number == prev_log)))
+            if (type == kLogFile && ((number >= min_log) || (number == prev_log))) {
                 logs.push_back(number);
-            /* NoveLSM: NVM memtable map file */
-            else if (type == kMapFile && number >= min_map) {
+                /* NoveLSM: NVM memtable map file */
+#ifdef ENABLE_RECOVERY
+            } else if (type == kMapFile && number >= min_map) {
                 maps.push_back(number);
                 DEBUG_T("Map number recovery %llu \n", number);
+#endif
             }
         }
     }
@@ -471,22 +479,26 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
         else if (logs.size() == 0) {
             //NoveLSM: There is only one log file and it is a NVM memtable
             // Iterate and recover
+#ifdef ENABLE_RECOVERY
             mapfile_number_ = maps[0];
             for (std::vector<uint64_t>::iterator it = maps.begin(); it != maps.end(); ++it) {
                 uint64_t map_num = *it;
                 RecoverMapFile(map_num, save_manifest, edit, &max_sequence);
                 versions_->MarkFileNumberUsed(map_num);
             }
+#endif
         }
         else if (logs[0] > maps[0]) {
             //NoveLSM: The first DRAM log is newwer than NVM memtable file
             //Recover incrementally
+#ifdef ENABLE_RECOVERY
             mapfile_number_ = maps[0];
             for (std::vector<uint64_t>::iterator it = maps.begin(); it != maps.end(); ++it) {
                 uint64_t map_num = *it;
                 RecoverMapFile(map_num, save_manifest, edit, &max_sequence);
                 versions_->MarkFileNumberUsed(map_num);
             }
+#endif
             RecoverLogFile(logs[0], true, save_manifest, edit, &max_sequence);
             versions_->MarkFileNumberUsed(logs[0]);
         }
@@ -495,13 +507,15 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
             versions_->MarkFileNumberUsed(logs[0]);
 
             //NoveLSM: TODO: Try to make all these blocks of NVM map file recovery
-            //into one block 	
+            //into one block
+#ifdef ENABLE_RECOVERY
             mapfile_number_ = maps[0];
             for (std::vector<uint64_t>::iterator it = maps.begin(); it != maps.end(); ++it) {
                 uint64_t map_num = *it;
                 RecoverMapFile(map_num, save_manifest, edit, &max_sequence);
                 versions_->MarkFileNumberUsed(map_num);
             }
+#endif
         }
     }
 
@@ -514,6 +528,7 @@ Status DBImpl::Recover(VersionEdit* edit, bool *save_manifest) {
     return Status::OK();
 }
 
+#ifdef ENABLE_RECOVERY
 Status DBImpl::RecoverMapFile(uint64_t map_number, bool *save_manifest,
         VersionEdit *edit, SequenceNumber* max_sequence) {
 
@@ -542,7 +557,7 @@ Status DBImpl::RecoverMapFile(uint64_t map_number, bool *save_manifest,
 
     return Status::OK();
 }
-
+#endif
 
 Status DBImpl::RecoverLogFile(uint64_t log_number, bool last_log,
         bool* save_manifest, VersionEdit* edit,
