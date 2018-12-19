@@ -160,6 +160,8 @@ class Env {
   // Sleep/delay the thread for the prescribed number of micro-seconds.
   virtual void SleepForMicroseconds(int micros) = 0;
 
+  virtual bool IsSchedulerEmpty() = 0;
+
  private:
   // No copying allowed
   Env(const Env&);

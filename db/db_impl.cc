@@ -2095,4 +2095,11 @@ Status DB::Open(const Options& options, const std::string& dbname_disk,
         return result;
     }
 
+    void DBImpl::WaitComp() {
+        while (!env_->IsSchedulerEmpty() || bg_compaction_scheduled_) {
+            env_->SleepForMicroseconds(1000000);
+        }
+        Log(options_.info_log, "Finished all scheduled compaction");
+    }
+
 }  // namespace leveldb

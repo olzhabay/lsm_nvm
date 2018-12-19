@@ -510,6 +510,8 @@ public:
 
     virtual void Schedule(void (*function)(void*), void* arg);
 
+    virtual bool IsSchedulerEmpty();
+
     virtual void StartThread(void (*function)(void* arg), void* arg);
 
     virtual Status GetTestDirectory(std::string* result) {
@@ -611,6 +613,10 @@ void PosixEnv::Schedule(void (*function)(void*), void* arg) {
     queue_.back().arg = arg;
 
     PthreadCall("unlock", pthread_mutex_unlock(&mu_));
+}
+
+bool PosixEnv::IsSchedulerEmpty() {
+  return queue_.empty();
 }
 
 void PosixEnv::BGThread() {
