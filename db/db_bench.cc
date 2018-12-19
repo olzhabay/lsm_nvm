@@ -332,7 +332,7 @@ private:
     int heap_counter_;
 
     void PrintHeader() {
-        const int kKeySize = 16;
+        const int kKeySize = 20;
         PrintEnvironment();
         fprintf(stdout, "Keys:       %d bytes each\n", kKeySize);
         fprintf(stdout, "Values:     %d bytes each (%d bytes after compression)\n",
@@ -772,7 +772,7 @@ private:
             for (int j = 0; j < entries_per_batch_; j++) {
                 const int k = seq ? i+j : (thread->rand.Next() % FLAGS_num);
                 char key[100];
-                snprintf(key, sizeof(key), "%016d", k);
+                snprintf(key, sizeof(key), "%020d", k);
                 //_SIMULATE_FAILUREfprintf(stdout, "%s\n", key);
                 batch.Put(key, gen.Generate(value_size_));
                 bytes += value_size_ + strlen(key);
@@ -850,7 +850,7 @@ private:
 #else
             k = thread->rand.Next() % FLAGS_num;
 #endif
-            snprintf(key, sizeof(key), "%016d", k);
+            snprintf(key, sizeof(key), "%020d", k);
             if (db_->Get(options, key, &value).ok()) {
                 bytes += strlen(key) + value.size();
                 //printf("Finished reading %d\n", i);
@@ -889,7 +889,7 @@ private:
         for (int i = 0; i < reads_; i++) {
             char key[100];
             const int k = thread->rand.Next() % FLAGS_num;
-            snprintf(key, sizeof(key), "%016d.", k);
+            snprintf(key, sizeof(key), "%020d.", k);
             db_->Get(options, key, &value);
             //thread->stats.FinishedSingleOp();
         }
@@ -902,7 +902,7 @@ private:
         for (int i = 0; i < reads_; i++) {
             char key[100];
             const int k = thread->rand.Next() % range;
-            snprintf(key, sizeof(key), "%016d", k);
+            snprintf(key, sizeof(key), "%020d", k);
             db_->Get(options, key, &value);
             thread->stats.FinishedSingleOp();
         }
@@ -915,7 +915,7 @@ private:
             Iterator* iter = db_->NewIterator(options);
             char key[100];
             const int k = thread->rand.Next() % FLAGS_num;
-            snprintf(key, sizeof(key), "%016d", k);
+            snprintf(key, sizeof(key), "%020d", k);
             iter->Seek(key);
             if (iter->Valid() && iter->key() == key) found++;
             delete iter;
@@ -935,7 +935,7 @@ private:
             for (int j = 0; j < entries_per_batch_; j++) {
                 const int k = seq ? i+j : (thread->rand.Next() % FLAGS_num);
                 char key[100];
-                snprintf(key, sizeof(key), "%016d", k);
+                snprintf(key, sizeof(key), "%020d", k);
                 batch.Delete(key);
                 thread->stats.FinishedSingleOp();
             }
@@ -972,7 +972,7 @@ private:
 
                 const int k = thread->rand.Next() % FLAGS_num;
                 char key[100];
-                snprintf(key, sizeof(key), "%016d", k);
+                snprintf(key, sizeof(key), "%020d", k);
                 Status s = db_->Put(write_options_, key, gen.Generate(value_size_));
                 if (!s.ok()) {
                     fprintf(stderr, "put error: %s\n", s.ToString().c_str());
@@ -1062,9 +1062,9 @@ int main(int argc, char** argv) {
         } else if (sscanf(argv[i], "--value_size=%d%c", &n, &junk) == 1) {
             FLAGS_value_size = n;
         } else if (sscanf(argv[i], "--write_buffer_size=%d%c", &n, &junk) == 1) {
-            FLAGS_write_buffer_size = n*1024L*1024L;
+            FLAGS_write_buffer_size = n;
         } else if (sscanf(argv[i], "--nvm_buffer_size=%d%c", &n, &junk) == 1) {
-            FLAGS_nvm_buffer_size = n*1024L*1024L;
+            FLAGS_nvm_buffer_size = n;
             //fprintf(stderr,"FLAGS_nvm_buffer_size %zu\n", FLAGS_nvm_buffer_size);
         } else if (sscanf(argv[i], "--cache_size=%d%c", &n, &junk) == 1) {
             FLAGS_cache_size = n;
